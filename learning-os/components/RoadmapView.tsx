@@ -34,11 +34,15 @@ export default function RoadmapView({ project, concepts, courses }: { project: P
   const cmap = new Map(concepts.map((c) => [c.id, c]));
 
   async function persist(next: Project) {
+    const prev = p;
     setP(next); setErr('');
     try {
-      await api(`/api/projects/${p.id}`, 'PATCH', { checkpoints: next.checkpoints });
+      await api(`/api/projects/${p.id}`, 'PATCH', { checkpoints: next.checkpoints, notes: next.notes });
       router.refresh();
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) {
+      setErr((e as Error).message);
+      setP(prev);
+    }
   }
   function update(cps: Checkpoint[]) { persist({ ...p, checkpoints: cps }); }
 
@@ -58,7 +62,12 @@ export default function RoadmapView({ project, concepts, courses }: { project: P
   }
   function delCheckpoint(i: number) {
     if (!confirm(`Remove checkpoint "${p.checkpoints[i].title}"?`)) return;
-    update(p.checkpoints.filter((_, j) => j !== i)); setSel(0);
+    const removedId = p.checkpoints[i].id;
+    const survivors = p.checkpoints
+      .filter((_, j) => j !== i)
+      .map((c) => ({ ...c, depends_on: c.depends_on.filter((d) => d !== removedId) }));
+    update(survivors);
+    setSel(0);
   }
   function toggleDependsOn(i: number, depId: string) {
     const cp = p.checkpoints[i];

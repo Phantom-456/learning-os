@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCourse, createCourse } from '@/lib/core/courses';
+import { getConcept } from '@/lib/core/concepts';
 import { explodeConcept } from '@/lib/core/explode';
 import { rebuildIndex } from '@/lib/core/indexDb';
 
@@ -18,6 +19,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const { id } = await params;
   const b = await req.json();
   if (!b.reason) return NextResponse.json({ error: 'reason is required' }, { status: 400 });
+  if (!getConcept(id)) return NextResponse.json({ error: `Concept not found: ${id}` }, { status: 404 });
 
   let parentCourseId: string | undefined = b.parentCourseId;
   if (!parentCourseId) {

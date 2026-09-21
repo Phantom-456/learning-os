@@ -29,7 +29,8 @@ export async function POST(req: Request) {
   const id: string = b.id ? slug(b.id) : slug(b.title);
   if (!id) return NextResponse.json({ error: 'could not derive id' }, { status: 400 });
   if (getConcept(id)) return NextResponse.json({ error: `concept "${id}" already exists` }, { status: 409 });
-  const c = createConcept({ id, title: b.title, parent: b.parent, order: b.order });
+  const order = b.order ?? (conceptSummaries().filter((c) => c.parent === b.parent).reduce((max, c) => Math.max(max, c.order), -1) + 1);
+  const c = createConcept({ id, title: b.title, parent: b.parent, order });
   rebuildIndex();
   return NextResponse.json({ concept: c });
 }
