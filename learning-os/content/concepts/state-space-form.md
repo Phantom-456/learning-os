@@ -10,6 +10,7 @@ videos: []
 links: []
 template_done: []
 updated: '2026-09-14'
+notes: []
 ---
 # State-space form (A,B,C,D)
 
