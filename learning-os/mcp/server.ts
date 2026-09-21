@@ -1,9 +1,17 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerConceptTools } from './tools/concepts';
+import { registerSourceTools } from './tools/sources';
+import { registerCourseTools } from './tools/courses';
+import { registerTemplateTools } from './tools/templates';
+import { registerGlobalKnowledgeTools } from './tools/globalKnowledge';
 
 const server = new McpServer({ name: 'learning-os', version: '0.1.0' });
 registerConceptTools(server);
+registerSourceTools(server);
+registerCourseTools(server);
+registerTemplateTools(server);
+registerGlobalKnowledgeTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();
