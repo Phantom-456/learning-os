@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "npx tsx .claude/hooks/memory-inject.mjs" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__learning-os__(set_checkpoint_depends_on|update_project)",
+        "hooks": [
+          { "type": "command", "command": "npx tsx .claude/hooks/auto-checkpoint.mjs" }
+        ]
+      }
+    ]
+  }
+}
