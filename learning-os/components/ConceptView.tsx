@@ -3,33 +3,22 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { ParentGroupSummary, ConceptSummary } from '@/lib/db';
+import { STATUS_LABEL, STATUS_COLOR } from '@/lib/core/status';
 
-const STATUS_COLOR: Record<string, string> = {
-  not_started: '#8b8b9e',
-  learning: '#e0b341',
-  complete: '#43c59e',
-};
-const STATUS_LABEL: Record<string, string> = {
-  not_started: 'Not started',
-  learning: 'Learning',
-  complete: 'Complete',
-};
+export interface ConceptSummary {
+  id: string; title: string; parent: string; order: number; status: 'not_started' | 'learning' | 'complete'; review: boolean;
+}
+export interface ParentGroup {
+  parent: string; concepts: ConceptSummary[]; complete: number; total: number;
+}
 
 async function api(url: string, method: string, body?: unknown) {
-  const r = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!r.ok) {
-    const e = await r.json().catch(() => ({}));
-    throw new Error(e.error || r.statusText);
-  }
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || r.statusText); }
   return r.json();
 }
 
-export default function ConceptView({ groups, parents }: { groups: ParentGroupSummary[]; parents: string[] }) {
+export default function ConceptView({ groups }: { groups: ParentGroup[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -47,7 +36,7 @@ export default function ConceptView({ groups, parents }: { groups: ParentGroupSu
     run(`r-${c.id}`, () => api(`/api/concepts/${c.id}/status`, 'POST', { action: 'review', review: !c.review }));
   }
   function del(c: ConceptSummary) {
-    if (!confirm(`Remove "${c.title}"? It is soft-deleted and recoverable.`)) return;
+    if (!confirm(`Archive "${c.title}"? It is recoverable (never hard-deleted).`)) return;
     run(`d-${c.id}`, () => api(`/api/concepts/${c.id}`, 'DELETE'));
   }
   async function move(list: ConceptSummary[], idx: number, dir: number) {
@@ -97,7 +86,6 @@ export default function ConceptView({ groups, parents }: { groups: ParentGroupSu
                   <div className="meta">
                     <span className="muted" style={{ fontSize: 12 }}>{STATUS_LABEL[c.status]}</span>
                     {c.review && <span className="badge review">review</span>}
-                    {c.videos > 0 && <span className="badge vid">{c.videos} video{c.videos > 1 ? 's' : ''}</span>}
                   </div>
                 </div>
                 <div className="right">
