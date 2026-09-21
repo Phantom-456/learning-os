@@ -65,4 +65,28 @@ describe('projects: DAG', () => {
       })
     ).toThrow();
   });
+
+  it('round-trips checkpoints with explicit undefined build/done_test through a successful write', async () => {
+    const { createProject, getProject, setCheckpointDependsOn } = await import('./projects');
+    createProject({
+      id: 'p3',
+      title: 'P3',
+      checkpoints: [cp('a', []), cp('b', [])],
+    });
+
+    // getProject reads back through normalizeCheckpoint, which assigns
+    // `build`/`done_test` as explicit own properties (value undefined)
+    // since neither was present in the written frontmatter.
+    const before = getProject('p3');
+    expect(before?.checkpoints.every((c) => 'build' in c && 'done_test' in c)).toBe(true);
+    expect(before?.checkpoints.map((c) => c.build)).toEqual([undefined, undefined]);
+
+    // A non-cyclic write on those checkpoints must survive saveProject's
+    // frontmatter serialization without the YAML dumper choking on the
+    // undefined-valued keys.
+    expect(() => setCheckpointDependsOn('p3', 'b', ['a'])).not.toThrow();
+
+    const after = getProject('p3');
+    expect(after?.checkpoints.find((c) => c.id === 'b')?.depends_on).toEqual(['a']);
+  });
 });
