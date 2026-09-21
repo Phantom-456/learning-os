@@ -1,25 +1,42 @@
-import { getAllConcepts } from '../../lib/core/concepts';
-import { getAllCourses } from '../../lib/core/courses';
+import { conceptSummaries, courseSummaries, projectSummaries } from '../../lib/core/indexDb';
 import { getAllProjects, unblockedCheckpoints } from '../../lib/core/projects';
 import { getAllTemplates } from '../../lib/core/templates';
+
+// Word-boundary-aware substring check — plain `String#includes` would
+// false-positive on short/common titles (e.g. a concept titled "ROS" would
+// fire on the word "across").
+function titleAppearsIn(lowerPrompt, title) {
+  const lowerTitle = title.toLowerCase();
+  const escaped = lowerTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`).test(lowerPrompt);
+}
 
 // Cheap, deterministic keyword match against known entity titles — no LLM
 // call, per spec §4's memory-inject gating principle. Runs on every
 // UserPromptSubmit; must stay fast and cost nothing when there's no match.
+//
+// Concepts/Courses/Projects are matched against `lib/core/indexDb.ts`'s
+// SQLite-backed summary index (built specifically for cheap title/status
+// lookups) instead of the full `getAllConcepts()`/`getAllCourses()`/
+// `getAllProjects()` entity loaders, which each do a full directory listing
+// plus a gray-matter parse of every content file. Templates have no summary
+// function in indexDb.ts yet (only Concepts/Courses/Projects were indexed by
+// the prior merged plan), so we keep using `getAllTemplates()` for them —
+// templates are typically few, so the full load is an acceptable exception.
 export function matchEntityTitles(prompt) {
   const lower = prompt.toLowerCase();
   const hits = [];
-  for (const c of getAllConcepts()) {
-    if (lower.includes(c.title.toLowerCase())) hits.push({ kind: 'concept', id: c.id, title: c.title });
+  for (const c of conceptSummaries()) {
+    if (titleAppearsIn(lower, c.title)) hits.push({ kind: 'concept', id: c.id, title: c.title });
   }
-  for (const c of getAllCourses()) {
-    if (lower.includes(c.title.toLowerCase())) hits.push({ kind: 'course', id: c.id, title: c.title });
+  for (const c of courseSummaries()) {
+    if (titleAppearsIn(lower, c.title)) hits.push({ kind: 'course', id: c.id, title: c.title });
   }
-  for (const p of getAllProjects()) {
-    if (lower.includes(p.title.toLowerCase())) hits.push({ kind: 'project', id: p.id, title: p.title });
+  for (const p of projectSummaries()) {
+    if (titleAppearsIn(lower, p.title)) hits.push({ kind: 'project', id: p.id, title: p.title });
   }
   for (const t of getAllTemplates()) {
-    if (lower.includes(t.title.toLowerCase())) hits.push({ kind: 'template', id: t.id, title: t.title });
+    if (titleAppearsIn(lower, t.title)) hits.push({ kind: 'template', id: t.id, title: t.title });
   }
   return hits;
 }
