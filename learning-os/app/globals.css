@@ -163,3 +163,29 @@ textarea { min-height: 320px; line-height: 1.6; resize: vertical; font-family: u
 .backlink { color: var(--muted); font-size: 13px; margin-bottom: 14px; display: inline-block; }
 .backlink:hover { color: var(--text); }
 .empty { color: var(--muted); padding: 30px; text-align: center; border: 1px dashed var(--border-2); border-radius: var(--radius); }
+
+/* ---- Explode Concept modal (learn2hack.today-styled: the one AI-generation
+   surface in this app — near-black panel, neon magenta/cyan glow, distinct
+   from the HTB-styled card lists everywhere else) ---- */
+.explode-overlay {
+  position: fixed; inset: 0; background: rgba(5, 4, 10, 0.75);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.explode-modal {
+  background: #0a0714; border: 1px solid #b23ce0; border-radius: var(--radius);
+  box-shadow: 0 0 0 1px rgba(178, 60, 224, 0.25), 0 0 32px rgba(178, 60, 224, 0.35), 0 0 64px rgba(56, 224, 224, 0.15);
+  padding: 24px; width: 440px; max-width: calc(100vw - 32px);
+}
+.explode-modal h2 {
+  font-family: var(--serif); font-size: 19px; margin: 0 0 4px;
+  background: linear-gradient(90deg, #e14be0, #38e0e0);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.explode-modal p.hint { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+.explode-modal .field label { color: #d79ee8; }
+.explode-modal textarea, .explode-modal input, .explode-modal select {
+  background: #120b1f; border-color: #6b2f85;
+}
+.explode-modal .btn.solid {
+  background: linear-gradient(90deg, #b23ce0, #38b8e0); border-color: transparent; color: #0a0714; font-weight: 700;
+}

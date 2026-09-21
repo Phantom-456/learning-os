@@ -3,14 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { Concept, VideoRef } from '@/lib/types';
-
-const TEMPLATE = [
-  'Why it exists', 'Intuition', 'Formal definition', 'Derivation',
-  'Assumptions & failure modes', 'Worked example (by hand)', 'Implementation',
-  'On YOUR robot', 'Connections', 'Misconceptions & gotchas', 'Self-test', 'Hooks',
-];
-const STATUS_COLOR: Record<string, string> = { not_started: '#8b8b9e', learning: '#e0b341', complete: '#43c59e' };
+import type { Concept, Note, Source } from '@/lib/core/types';
+import { STATUS_COLOR } from '@/lib/core/status';
 
 async function api(url: string, method: string, body?: unknown) {
   const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -18,22 +12,20 @@ async function api(url: string, method: string, body?: unknown) {
   return r.json();
 }
 
-export default function ConceptDetail({ concept, parents }: { concept: Concept; parents: string[] }) {
+export default function ConceptDetail({ concept, parents, sources }: { concept: Concept; parents: string[]; sources: Source[] }) {
   const router = useRouter();
   const [c, setC] = useState<Concept>(concept);
+  const [srcs, setSrcs] = useState<Source[]>(sources);
   const [saving, setSaving] = useState(false);
-  const [hooks, setHooks] = useState<{ hooks: string[]; structure: string[] } | null>(null);
-  const [msg, setMsg] = useState<string>('');
+  const [msg, setMsg] = useState('');
+  const [explodeOpen, setExplodeOpen] = useState(false);
 
   function set<K extends keyof Concept>(k: K, v: Concept[K]) { setC({ ...c, [k]: v }); }
 
   async function save() {
     setSaving(true); setMsg('');
     try {
-      await api(`/api/concepts/${c.id}`, 'PATCH', {
-        title: c.title, parent: c.parent, body: c.body, videos: c.videos,
-        prereqs: c.prereqs, links: c.links, template_done: c.template_done,
-      });
+      await api(`/api/concepts/${c.id}`, 'PATCH', { title: c.title, parent: c.parent, body: c.body, prereqs: c.prereqs });
       setMsg('Saved.'); router.refresh();
     } catch (e) { setMsg((e as Error).message); }
     finally { setSaving(false); }
@@ -48,29 +40,42 @@ export default function ConceptDetail({ concept, parents }: { concept: Concept; 
     setC({ ...c, ...r.concept }); router.refresh();
   }
 
-  function toggleSlot(slot: string) {
-    const has = c.template_done.includes(slot);
-    set('template_done', has ? c.template_done.filter((s) => s !== slot) : [...c.template_done, slot]);
+  async function addNote() {
+    const text = prompt('Note text:');
+    if (!text) return;
+    const url = prompt('Attach a link? (leave blank to skip)');
+    const note: Note = { id: `n-${Date.now()}`, date: new Date().toISOString().slice(0, 10), text, attachments: url ? [{ type: 'link', url }] : undefined };
+    const notes = [...c.notes, note];
+    await api(`/api/concepts/${c.id}`, 'PATCH', { notes });
+    setC({ ...c, notes }); router.refresh();
+  }
+  async function removeNote(id: string) {
+    const notes = c.notes.filter((n) => n.id !== id);
+    await api(`/api/concepts/${c.id}`, 'PATCH', { notes });
+    setC({ ...c, notes }); router.refresh();
   }
 
-  function addVideo() {
-    const url = prompt('Video URL (paste the YouTube link):');
+  async function addSource() {
+    const title = prompt('Source title:');
+    if (!title) return;
+    const url = prompt('Source URL:');
     if (!url) return;
-    const kind = confirm('Is this a LONG video? OK = long, Cancel = short') ? 'long' : 'short';
-    set('videos', [...c.videos, { url, kind } as VideoRef]);
+    const r = await api('/api/sources', 'POST', { title, url, type: 'link', concepts: [c.id] });
+    setSrcs([...srcs, r.source]);
   }
-  function removeVideo(i: number) { set('videos', c.videos.filter((_, j) => j !== i)); }
+  async function unlinkSource(s: Source) {
+    const concepts = s.concepts.filter((cid) => cid !== c.id);
+    await api(`/api/sources/${s.id}`, 'PATCH', { concepts });
+    setSrcs(srcs.filter((x) => x.id !== s.id));
+  }
 
-  async function makeReadable() {
-    setMsg('Organizing into the §2 template…');
-    const r = await api('/api/pipeline', 'POST', { action: 'make-readable', notes: c.body, title: c.title });
-    if (confirm('Replace the note body with the organized template? (your raw text is kept inside it)')) {
-      set('body', r.readable); setMsg('Body organized — remember to Save.');
-    } else setMsg('');
-  }
-  async function genHooks(kind: 'short' | 'long') {
-    const r = await api('/api/pipeline', 'POST', { action: 'hooks', readable: c.body, title: c.title, kind });
-    setHooks({ hooks: r.hooks, structure: r.structure });
+  async function explode(reason: string, newParentCourseTitle: string) {
+    try {
+      await api(`/api/concepts/${c.id}/explode`, 'POST', { reason, newParentCourseTitle });
+      setExplodeOpen(false);
+      setMsg('Exploded into a new course.');
+      router.refresh();
+    } catch (e) { alert((e as Error).message); }
   }
 
   return (
@@ -83,13 +88,14 @@ export default function ConceptDetail({ concept, parents }: { concept: Concept; 
 
       <div className="toolbar">
         {(['not_started', 'learning', 'complete'] as const).map((s) => (
-          <button key={s} className={`statusbtn`} style={{ borderColor: c.status === s ? STATUS_COLOR[s] : undefined }} onClick={() => setStatus(s)}>
+          <button key={s} className="statusbtn" style={{ borderColor: c.status === s ? STATUS_COLOR[s] : undefined }} onClick={() => setStatus(s)}>
             <span className="sd" style={{ background: STATUS_COLOR[s] }} />
             {s.replace('_', ' ')}{c.status === s ? ' ✓' : ''}
           </button>
         ))}
         <button className="btn ghost" onClick={() => setReview(!c.review)}>{c.review ? 'Clear review flag' : 'Flag for review'}</button>
         <span className="spacer" />
+        <button className="btn ghost" onClick={() => setExplodeOpen(true)}>💥 Explode Concept</button>
         <button className="btn solid" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </div>
       {msg && <p className="muted" style={{ marginTop: -8 }}>{msg}</p>}
@@ -100,19 +106,41 @@ export default function ConceptDetail({ concept, parents }: { concept: Concept; 
             <label>Notes (Markdown — your own words)</label>
             <textarea value={c.body} onChange={(e) => set('body', e.target.value)} />
           </div>
-          <div className="toolbar">
-            <button className="btn" onClick={makeReadable}>✨ Make readable</button>
-            <button className="btn" onClick={() => genHooks('short')}>Hooks · Short</button>
-            <button className="btn" onClick={() => genHooks('long')}>Structure · Long</button>
+
+          <div className="section-title" style={{ marginTop: 0 }}>Notes dump</div>
+          <div className="cardlist">
+            {c.notes.map((n) => (
+              <div key={n.id} className="card" style={{ alignItems: 'flex-start' }}>
+                <span className="chip" style={{ background: 'var(--accent)' }} />
+                <div className="body">
+                  <div className="desc" style={{ whiteSpace: 'pre-wrap' }}>{n.text}</div>
+                  {n.attachments?.map((a, i) => (
+                    <a key={i} href={a.url} target="_blank" rel="noreferrer" className="pill" style={{ marginTop: 6, display: 'inline-block' }}>{a.url}</a>
+                  ))}
+                  <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>{n.date}</div>
+                </div>
+                <button className="btn ghost sm danger" onClick={() => removeNote(n.id)}>✕</button>
+              </div>
+            ))}
+            {c.notes.length === 0 && <div className="empty">No notes yet.</div>}
           </div>
-          {hooks && (
-            <div className="hookbox">
-              <strong>Hook options</strong>
-              <ul>{hooks.hooks.map((h, i) => <li key={i}>{h}</li>)}</ul>
-              <strong>Rough structure</strong>
-              <ol>{hooks.structure.map((s, i) => <li key={i}>{s}</li>)}</ol>
-            </div>
-          )}
+          <div className="toolbar"><button className="btn sm" onClick={addNote}>＋ Add note</button></div>
+
+          <div className="section-title">Sources</div>
+          <div className="cardlist">
+            {srcs.map((s) => (
+              <div key={s.id} className="card">
+                <span className="chip" style={{ background: 'var(--blue)' }} />
+                <div className="body">
+                  <a href={s.url} target="_blank" rel="noreferrer" className="title">{s.title}</a>
+                  <div className="desc">{s.type}</div>
+                </div>
+                <button className="btn ghost sm danger" onClick={() => unlinkSource(s)}>✕</button>
+              </div>
+            ))}
+            {srcs.length === 0 && <div className="empty">No sources yet.</div>}
+          </div>
+          <div className="toolbar"><button className="btn sm" onClick={addSource}>＋ Add source</button></div>
         </div>
 
         <div style={{ flex: '1 1 300px', minWidth: 260 }}>
@@ -125,30 +153,36 @@ export default function ConceptDetail({ concept, parents }: { concept: Concept; 
             <label>Title</label>
             <input type="text" value={c.title} onChange={(e) => set('title', e.target.value)} />
           </div>
-
-          <div className="field">
-            <label>Videos</label>
-            {c.videos.map((v, i) => (
-              <div className="row" key={i} style={{ marginBottom: 6 }}>
-                <span className="badge vid">{v.kind}</span>
-                <a href={v.url} target="_blank" rel="noreferrer" className="pill" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.url}</a>
-                <button className="btn ghost sm danger" onClick={() => removeVideo(i)}>✕</button>
-              </div>
-            ))}
-            <button className="btn sm" onClick={addVideo}>＋ Add video</button>
-          </div>
-
-          <div className="field">
-            <label>§2 template — completed slots</label>
-            {TEMPLATE.map((slot) => (
-              <label key={slot} style={{ display: 'flex', gap: 8, textTransform: 'none', letterSpacing: 0, color: 'var(--text)', fontSize: 13, marginBottom: 4, cursor: 'pointer' }}>
-                <input type="checkbox" checked={c.template_done.includes(slot)} onChange={() => toggleSlot(slot)} style={{ width: 'auto' }} />
-                {slot}
-              </label>
-            ))}
-          </div>
         </div>
       </div>
+
+      {explodeOpen && <ExplodeModal onClose={() => setExplodeOpen(false)} onSubmit={explode} />}
     </>
+  );
+}
+
+function ExplodeModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (reason: string, newParentCourseTitle: string) => void }) {
+  const [reason, setReason] = useState('');
+  const [courseTitle, setCourseTitle] = useState('');
+  return (
+    <div className="explode-overlay" onClick={onClose}>
+      <div className="explode-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Explode Concept</h2>
+        <p className="hint">Break this concept into a finer-grained course, targeted at what's confusing you.</p>
+        <div className="field">
+          <label>Why is this hard to understand?</label>
+          <textarea style={{ minHeight: 90 }} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. the derivation loses me at the update step" />
+        </div>
+        <div className="field">
+          <label>New course name (nests under it)</label>
+          <input type="text" value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} placeholder="e.g. Kalman filter, broken down" />
+        </div>
+        <div className="toolbar">
+          <span className="spacer" />
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn solid" disabled={!reason || !courseTitle} onClick={() => onSubmit(reason, courseTitle)}>Explode</button>
+        </div>
+      </div>
+    </div>
   );
 }
