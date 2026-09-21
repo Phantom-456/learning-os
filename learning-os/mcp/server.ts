@@ -5,6 +5,7 @@ import { registerSourceTools } from './tools/sources';
 import { registerCourseTools } from './tools/courses';
 import { registerTemplateTools } from './tools/templates';
 import { registerGlobalKnowledgeTools } from './tools/globalKnowledge';
+import { registerProjectTools } from './tools/projects';
 
 const server = new McpServer({ name: 'learning-os', version: '0.1.0' });
 registerConceptTools(server);
@@ -12,6 +13,7 @@ registerSourceTools(server);
 registerCourseTools(server);
 registerTemplateTools(server);
 registerGlobalKnowledgeTools(server);
+registerProjectTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();
