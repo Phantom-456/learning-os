@@ -42,11 +42,41 @@ export function registerConceptTools(server: McpServer): void {
       parent: z.string().optional(),
       body: z.string().optional(),
       prereqs: z.array(z.string()).optional(),
+      notes: z.array(z.object({
+        id: z.string(),
+        date: z.string(),
+        text: z.string().optional(),
+        attachments: z.array(z.object({
+          type: z.enum(['image', 'audio', 'video', 'link', 'file']),
+          path: z.string().optional(),
+          url: z.string().optional(),
+        })).optional(),
+      })).optional(),
     },
     async ({ id, ...patch }) => {
       const c = getConcept(id);
       if (!c) return { content: [{ type: 'text' as const, text: `Concept not found: ${id}` }], isError: true };
       Object.assign(c, patch);
+      return text(saveConcept(c));
+    }
+  );
+
+  server.tool(
+    'append_concept_note',
+    'Append a single note (text and/or link/image/etc. attachments) to a concept, without needing to resend the whole notes array.',
+    {
+      id: z.string(),
+      text: z.string().optional(),
+      attachments: z.array(z.object({
+        type: z.enum(['image', 'audio', 'video', 'link', 'file']),
+        path: z.string().optional(),
+        url: z.string().optional(),
+      })).optional(),
+    },
+    async ({ id, text: noteText, attachments }) => {
+      const c = getConcept(id);
+      if (!c) return { content: [{ type: 'text' as const, text: `Concept not found: ${id}` }], isError: true };
+      c.notes.push({ id: `n-${Date.now()}`, date: new Date().toISOString().slice(0, 10), text: noteText, attachments });
       return text(saveConcept(c));
     }
   );

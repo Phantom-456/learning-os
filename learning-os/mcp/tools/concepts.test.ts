@@ -49,4 +49,28 @@ describe('concept tools', () => {
     const text = (result as { content: { text: string }[] }).content[0].text;
     expect(text).toContain('learning');
   });
+
+  it('appends a note via append_concept_note and it is visible via get_concept', async () => {
+    const { registerConceptTools } = await import('./concepts');
+    const server = new McpServer({ name: 'test', version: '0.0.0' });
+    registerConceptTools(server);
+
+    await callTool(server, 'create_concept', { id: 'pid', title: 'PID', parent: 'Classical control' });
+    const appendResult = await callTool(server, 'append_concept_note', {
+      id: 'pid',
+      text: 'Tuned gains empirically',
+      attachments: [{ type: 'link', url: 'https://example.com/pid-notes' }],
+    });
+    const appendText = (appendResult as { content: { text: string }[] }).content[0].text;
+    expect(appendText).toContain('Tuned gains empirically');
+
+    const getResult = await callTool(server, 'get_concept', { id: 'pid' });
+    const getText = (getResult as { content: { text: string }[] }).content[0].text;
+    expect(getText).toContain('Tuned gains empirically');
+    expect(getText).toContain('https://example.com/pid-notes');
+
+    const parsed = JSON.parse(getText);
+    expect(parsed.notes).toHaveLength(1);
+    expect(parsed.notes[0].text).toBe('Tuned gains empirically');
+  });
 });
