@@ -8,7 +8,7 @@ their frontmatter for fast views and is rebuilt from the files on every write.
 ## One-click launch (macOS)
 
 Double-click **`launcher/Learning OS.app`** (or the **`launcher/run.command`** fallback). On first
-run it installs dependencies, seeds the content, builds, then starts the server and opens the
+run it installs dependencies, builds, then starts the server and opens the
 browser. It **won't start a second server** if one is already running, and closing the Terminal
 window stops the server. The app runs at <http://localhost:3210>.
 
@@ -16,7 +16,6 @@ window stops the server. The app runs at <http://localhost:3210>.
 
 ```bash
 npm install
-npm run seed      # create content/ from the study plan (idempotent; --force to overwrite)
 npm run dev       # or: npm run build && npm run start
 ```
 
@@ -48,7 +47,6 @@ content/            # SOURCE OF TRUTH (Markdown + YAML frontmatter)
 lib/                # content (file CRUD), db (node:sqlite index), status, pipeline, types
 app/                # Next.js App Router — pages + /api routes
 components/          # ConceptView, ConceptDetail, ProjectList, RoadmapView (client)
-scripts/seed.mjs    # seed content from STUDY-PLAN + ROADMAP-diffdrive
 launcher/           # macOS .app + run.command
 ```
 

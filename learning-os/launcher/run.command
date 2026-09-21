@@ -1,6 +1,6 @@
 #!/bin/bash
 # YTS Learning OS — one-click launcher (also the .command fallback).
-# First run: installs deps, seeds content, builds. Every run: starts the server,
+# First run: installs deps, builds. Every run: starts the server,
 # waits until it is up, opens the browser, and stops the server when this window
 # is closed. Never starts a second server if one is already running.
 
@@ -26,7 +26,6 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 [ -d node_modules ] || { log "First run: installing dependencies (one-time, ~1 min)…"; npm install || exit 1; }
-[ -d content/concepts ] || { log "Seeding content from the study plan…"; node scripts/seed.mjs; }
 [ -d .next ] || { log "Building the app (one-time)…"; npm run build || exit 1; }
 
 log "Starting the server on $URL …"
