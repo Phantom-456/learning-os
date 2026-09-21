@@ -11,6 +11,19 @@ export function listConceptIds(): string[] {
   return listIds(conceptsDir());
 }
 
+const KNOWN_CONCEPT_KEYS = new Set([
+  'id', 'title', 'parent', 'order', 'status', 'review', 'prereqs',
+  'notes', 'updated', 'archived',
+]);
+
+function extractExtra(data: Record<string, unknown>): Record<string, unknown> | undefined {
+  const extra: Record<string, unknown> = {};
+  for (const key of Object.keys(data)) {
+    if (!KNOWN_CONCEPT_KEYS.has(key)) extra[key] = data[key];
+  }
+  return Object.keys(extra).length ? extra : undefined;
+}
+
 function normalize(id: string, data: Record<string, unknown>, body: string): Concept {
   return {
     id: (data.id as string) ?? id,
@@ -23,6 +36,7 @@ function normalize(id: string, data: Record<string, unknown>, body: string): Con
     notes: (data.notes as Note[]) ?? [],
     updated: (data.updated as string) ?? today(),
     archived: Boolean(data.archived ?? false),
+    extra: extractExtra(data),
     body,
   };
 }
@@ -40,6 +54,7 @@ export function getAllConcepts(includeArchived = false): Concept[] {
 
 function frontmatter(c: Concept): Record<string, unknown> {
   const fm: Record<string, unknown> = {
+    ...c.extra,
     id: c.id,
     title: c.title,
     parent: c.parent,

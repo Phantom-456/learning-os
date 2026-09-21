@@ -48,6 +48,19 @@ export function listConceptIds(): string[] {
   return fs.readdirSync(CONCEPTS_DIR).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3));
 }
 
+const KNOWN_CONCEPT_KEYS = new Set([
+  'id', 'title', 'parent', 'order', 'status', 'review', 'prereqs',
+  'videos', 'my_video', 'links', 'template_done', 'updated', 'deleted',
+]);
+
+function extractExtra(data: Record<string, unknown>, knownKeys: Set<string>): Record<string, unknown> | undefined {
+  const extra: Record<string, unknown> = {};
+  for (const key of Object.keys(data)) {
+    if (!knownKeys.has(key)) extra[key] = data[key];
+  }
+  return Object.keys(extra).length ? extra : undefined;
+}
+
 function normalizeConcept(id: string, data: Record<string, unknown>, body: string): Concept {
   return {
     id: (data.id as string) ?? id,
@@ -62,6 +75,7 @@ function normalizeConcept(id: string, data: Record<string, unknown>, body: strin
     template_done: (data.template_done as string[]) ?? [],
     updated: (data.updated as string) ?? today(),
     deleted: Boolean(data.deleted ?? false),
+    extra: extractExtra(data, KNOWN_CONCEPT_KEYS),
     body,
   };
 }
@@ -81,6 +95,7 @@ export function getAllConcepts(includeDeleted = false): Concept[] {
 
 function conceptFrontmatter(c: Concept): Record<string, unknown> {
   const fm: Record<string, unknown> = {
+    ...c.extra,
     id: c.id,
     title: c.title,
     parent: c.parent,
@@ -179,6 +194,11 @@ function normalizeMilestone(m: Record<string, unknown>, i: number): Milestone {
   };
 }
 
+const KNOWN_PROJECT_KEYS = new Set([
+  'id', 'title', 'robot', 'status', 'definition_of_done', 'toolchain',
+  'milestones', 'updated', 'deleted',
+]);
+
 function normalizeProject(id: string, data: Record<string, unknown>, body: string): Project {
   const rawMs = Array.isArray(data.milestones) ? (data.milestones as Record<string, unknown>[]) : [];
   return {
@@ -191,6 +211,7 @@ function normalizeProject(id: string, data: Record<string, unknown>, body: strin
     milestones: rawMs.map(normalizeMilestone).sort((a, b) => a.order - b.order),
     updated: (data.updated as string) ?? today(),
     deleted: Boolean(data.deleted ?? false),
+    extra: extractExtra(data, KNOWN_PROJECT_KEYS),
     body,
   };
 }
@@ -210,6 +231,7 @@ export function getAllProjects(includeDeleted = false): Project[] {
 
 function projectFrontmatter(p: Project): Record<string, unknown> {
   const fm: Record<string, unknown> = {
+    ...p.extra,
     id: p.id,
     title: p.title,
     robot: p.robot,

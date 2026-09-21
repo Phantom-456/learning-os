@@ -32,6 +32,8 @@ export interface Concept {
   updated: string; // ISO-8601 date
   deleted?: boolean; // soft-delete flag
   body: string; // Markdown body (source of truth; not stored in index rows)
+  /** Frontmatter keys this layer doesn't model (e.g. the new layer's `notes`), preserved verbatim across read-modify-write so they aren't silently dropped. */
+  extra?: Record<string, unknown>;
 }
 
 /** One roadmap step. References concepts; adds robot-specific application + a video. */
@@ -59,6 +61,8 @@ export interface Project {
   updated: string; // ISO-8601 date
   deleted?: boolean;
   body: string;
+  /** Frontmatter keys this layer doesn't model (e.g. the new layer's `checkpoints`/`metadata`/`notes`), preserved verbatim across read-modify-write so they aren't silently dropped. */
+  extra?: Record<string, unknown>;
 }
 
 /** A parent header groups concepts in the Concept view. Derived from concept frontmatter. */

@@ -30,6 +30,8 @@ export interface Concept {
   updated: string;
   archived?: boolean;
   body: string;
+  /** Frontmatter keys this layer doesn't model (e.g. the old layer's `videos`/`links`/`template_done`), preserved verbatim across read-modify-write so they aren't silently dropped. */
+  extra?: Record<string, unknown>;
 }
 
 export interface Source {

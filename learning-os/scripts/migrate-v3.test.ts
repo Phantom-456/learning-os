@@ -72,8 +72,10 @@ describe('migrate-v3', () => {
   it('carries the app_notes file body into a Project note, attributed to its checkpoint', () => {
     execFileSync('node', ['scripts/migrate-v3.mjs', dir], { cwd: process.cwd() });
     const { data } = matter(fs.readFileSync(path.join(dir, 'projects', 'diffdrive-mobile-manipulator.md'), 'utf8'));
-    const note = data.notes.find((n) => n.text.includes('Notes about setting up the sim environment.'));
+    const note = (data.notes as { id: string; date: string; text: string }[]).find((n) =>
+      n.text.includes('Notes about setting up the sim environment.')
+    );
     expect(note).toBeTruthy();
-    expect(note.text).toContain('Simulator + empty robot body');
+    expect(note?.text).toContain('Simulator + empty robot body');
   });
 });
