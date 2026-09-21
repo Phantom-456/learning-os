@@ -141,22 +141,23 @@ write time (§5).
 
 ### Price Record (supporting entity)
 One per priced item, an append-only observation log (never overwritten —
-old observations stay, so trend and staleness are both visible). Default
-location/currency is India/INR, carried per record for extensibility.
+old observations stay, so trend and staleness are both visible), keyed by
+`item` and holding observations **per market** (a market = location +
+currency, e.g. `IN`/`INR`, `US`/`USD`) — the same item can carry price
+history for several markets at once.
 ```yaml
 id: price-<item-slug>
 item: "Raspberry Pi 4 8GB"
-location: IN
-currency: INR
 observations:
-  - {date: 2026-09-21, price: 8500, available: true, source: "https://robu.in/...", seller: "Robu.in"}
-  - {date: 2026-06-01, price: 7999, available: true, source: "..."}
+  - {market: IN, currency: INR, date: 2026-09-21, price: 8500, available: true, source: "https://robu.in/...", seller: "Robu.in"}
+  - {market: US, currency: USD, date: 2026-08-01, price: 75, available: true, source: "..."}
 alternatives:
-  - {name: "Orange Pi 5", price: 6500, currency: INR, downsides: "less community support"}
+  - {name: "Orange Pi 5", market: IN, currency: INR, price: 6500, downsides: "less community support"}
 ```
 Checkpoints/Projects reference a Price Record by `item` rather than storing
-a price inline, so the same item priced for two different projects shares
-one growing history instead of two independent lookups.
+a price inline, so the same item priced for two different projects (even
+in different markets) shares one growing history instead of independent
+lookups.
 
 ### Global knowledge (singleton)
 One record, instance-wide, structurally identical to a Template's experience
@@ -294,21 +295,27 @@ skills rather than hard-coded into the core package:
   user's location, searched by the pricing skill.
 
 ### Pricing (detail)
-Cache-first, per the skill-vs-tool principle (§4): a **tool** reads the
-Price Record (§2) for each item a checkpoint needs. If the latest
-observation is within a staleness window (e.g. 30-90 days — most tools and
-devices sit in a stable price range absent a geopolitical shock), it's
-reused directly — no search, no LLM call. Only when a record is stale or
-missing does the **pricing skill** run a fresh India/INR-scoped marketplace
-search and append a new observation (never overwrite) to that item's Price
-Record.
+**Market is an explicit argument**, not a silent default. Both the tool and
+the skill take `market` (location + currency, e.g. `IN`/`INR`).
+
+- **Pricing skill** (invoked directly, e.g. at project creation): if
+  `market` isn't supplied, it asks the user rather than assuming one.
+- **Pricing tool** (cache read, per the skill-vs-tool principle in §4):
+  reads the Price Record (§2) for the given item **and market**. If the
+  latest observation for that market is within a staleness window (e.g.
+  30-90 days — most tools and devices sit in a stable price range absent a
+  geopolitical shock), it's reused directly — no search, no LLM call.
+- If the requested market has **no stored observation at all** for that
+  item (not just stale — genuinely missing), the tool triggers the pricing
+  skill to run a fresh search scoped to that market and append a new
+  observation (never overwrite) to the item's Price Record.
 
 For a checkpoint and for the whole project, the result is: a rough total
-price to complete it (summed from current Price Record observations), links
-to every source/listing behind them, current availability in India, and —
-where a paid tool has a free alternative or workaround — that alternative
-listed alongside with its downsides noted (e.g. "free tier caps exports at
-10/day").
+price to complete it in the requested market (summed from current Price
+Record observations for that market), links to every source/listing behind
+them, current availability in that market, and — where a paid tool has a
+free alternative or workaround — that alternative listed alongside with its
+downsides noted (e.g. "free tier caps exports at 10/day").
 
 ---
 
@@ -324,10 +331,12 @@ listed alongside with its downsides noted (e.g. "free tier caps exports at
    the checkpoint DAG.
 4. **Resource-finder skill** looks up free study material per new Concept
    and creates draft Source entries, pre-tagged.
-5. **Pricing** looks up any hardware/tool the syllabus calls for: the tool
-   checks each item's Price Record first, and only the pricing skill runs a
-   fresh search for items that are stale or missing (§6). Results (with
-   links and free alternatives) attach to the relevant checkpoint as a note.
+5. **Pricing** looks up any hardware/tool the syllabus calls for, scoped to
+   a market (asked up front if not already known): the tool checks each
+   item's Price Record for that market first, and only the pricing skill
+   runs a fresh search for items that are stale or have no data for that
+   market (§6). Results (with links and free alternatives) attach to the
+   relevant checkpoint as a note.
 6. Core writes the new Project + Checkpoints + Courses + Concepts + Sources
    to `content/*.md`, rebuilds the local index.
 7. User completes a checkpoint → the DAG resolver recomputes what's newly
