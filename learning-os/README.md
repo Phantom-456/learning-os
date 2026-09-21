@@ -44,7 +44,8 @@ content/            # SOURCE OF TRUTH (Markdown + YAML frontmatter)
   concepts/<id>.md
   projects/<id>.md
   notes/<project>/<milestone>.md
-lib/                # content (file CRUD), db (node:sqlite index), status, pipeline, types
+lib/core/           # concepts, sources, courses, templates, projects, prices,
+                    #   globalKnowledge, indexDb, status, explode, rollup, markdown, paths, types
 app/                # Next.js App Router — pages + /api routes
 components/          # ConceptView, ConceptDetail, ProjectList, RoadmapView (client)
 launcher/           # macOS .app + run.command
