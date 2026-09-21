@@ -29,7 +29,7 @@ export function registerProjectTools(server: McpServer): void {
 
   server.tool('create_project', 'Create a project, optionally with an initial checkpoint DAG.', {
     id: z.string(), title: z.string(), template: z.string().optional(),
-    metadata: z.record(z.string()).optional(), checkpoints: z.array(checkpointSchema).optional(),
+    metadata: z.record(z.string(), z.string()).optional(), checkpoints: z.array(checkpointSchema).optional(),
   }, async (input) => {
     try {
       return text(createProject(input));
@@ -40,7 +40,7 @@ export function registerProjectTools(server: McpServer): void {
 
   server.tool('update_project', 'Update a project, including its full checkpoints array — cycle-validated on write.', {
     id: z.string(), title: z.string().optional(), status: z.enum(['in_progress', 'done', 'abandoned']).optional(),
-    metadata: z.record(z.string()).optional(), checkpoints: z.array(checkpointSchema).optional(),
+    metadata: z.record(z.string(), z.string()).optional(), checkpoints: z.array(checkpointSchema).optional(),
   }, async ({ id, ...patch }) => {
     const p = getProject(id);
     if (!p) return errorText(`Project not found: ${id}`);
