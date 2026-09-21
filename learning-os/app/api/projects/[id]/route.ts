@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getProject, saveProject, softDeleteProject } from '@/lib/content';
-import { rebuildIndex } from '@/lib/db';
-import type { Project } from '@/lib/types';
+import { getProject, saveProject, softDeleteProject } from '@/lib/core/projects';
+import { rebuildIndex } from '@/lib/core/indexDb';
+import type { Project } from '@/lib/core/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,12 +14,10 @@ export async function GET(_req: Request, { params }: Ctx) {
   return NextResponse.json({ project: p });
 }
 
-const EDITABLE: (keyof Project)[] = [
-  'title', 'robot', 'status', 'definition_of_done', 'toolchain', 'body', 'milestones', 'deleted',
-];
+const EDITABLE: (keyof Project)[] = ['title', 'status', 'metadata', 'body', 'checkpoints', 'notes', 'deleted'];
 
-// PATCH accepts any editable field, including the full `milestones` array —
-// so add / remove / reorder / edit / set-status / attach-video are all one call.
+// PATCH accepts any editable field, including the full `checkpoints` array —
+// saveProject validates the whole array for dependency cycles before writing.
 export async function PATCH(req: Request, { params }: Ctx) {
   const { id } = await params;
   const p = getProject(id);
@@ -28,11 +26,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
   for (const k of EDITABLE) {
     if (k in patch) (p as unknown as Record<string, unknown>)[k] = patch[k];
   }
-  // keep milestone order stable if provided out of order
-  if (Array.isArray(p.milestones)) {
-    p.milestones = p.milestones.map((m, i) => ({ ...m, order: i }));
+  try {
+    saveProject(p);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
-  saveProject(p);
   rebuildIndex();
   return NextResponse.json({ project: p });
 }
