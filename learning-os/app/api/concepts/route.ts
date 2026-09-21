@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { conceptGroups, rebuildIndex } from '@/lib/db';
-import { createConcept, getConcept } from '@/lib/content';
+import { conceptSummaries, rebuildIndex } from '@/lib/core/indexDb';
+import { createConcept, getConcept } from '@/lib/core/concepts';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +9,16 @@ function slug(s: string): string {
 }
 
 export async function GET() {
-  return NextResponse.json({ groups: conceptGroups() });
+  const summaries = conceptSummaries();
+  const groups: { parent: string; concepts: typeof summaries; complete: number; total: number }[] = [];
+  for (const c of summaries) {
+    let g = groups.find((x) => x.parent === c.parent);
+    if (!g) { g = { parent: c.parent, concepts: [], complete: 0, total: 0 }; groups.push(g); }
+    g.concepts.push(c);
+    g.total += 1;
+    if (c.status === 'complete') g.complete += 1;
+  }
+  return NextResponse.json({ groups });
 }
 
 export async function POST(req: Request) {

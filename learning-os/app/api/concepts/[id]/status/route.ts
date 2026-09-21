@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getConcept, saveConcept } from '@/lib/content';
-import { rebuildIndex } from '@/lib/db';
-import { applyStatus, setReview, nextStatus } from '@/lib/status';
+import { getConcept, saveConcept } from '@/lib/core/concepts';
+import { rebuildIndex } from '@/lib/core/indexDb';
+import { applyStatus, setReview, nextStatus } from '@/lib/core/status';
 
 export const dynamic = 'force-dynamic';
 

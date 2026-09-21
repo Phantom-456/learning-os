@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getConcept, saveConcept, softDeleteConcept } from '@/lib/content';
-import { rebuildIndex } from '@/lib/db';
-import type { Concept } from '@/lib/types';
+import { getConcept, saveConcept, archiveConcept } from '@/lib/core/concepts';
+import { rebuildIndex } from '@/lib/core/indexDb';
+import type { Concept } from '@/lib/core/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,9 +14,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   return NextResponse.json({ concept: c });
 }
 
-const EDITABLE: (keyof Concept)[] = [
-  'title', 'parent', 'order', 'body', 'prereqs', 'links', 'videos', 'template_done', 'deleted',
-];
+const EDITABLE: (keyof Concept)[] = ['title', 'parent', 'order', 'body', 'prereqs', 'notes', 'archived'];
 
 export async function PATCH(req: Request, { params }: Ctx) {
   const { id } = await params;
@@ -33,7 +31,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 export async function DELETE(_req: Request, { params }: Ctx) {
   const { id } = await params;
-  const c = softDeleteConcept(id);
+  const c = archiveConcept(id);
   if (!c) return NextResponse.json({ error: 'not found' }, { status: 404 });
   rebuildIndex();
   return NextResponse.json({ concept: c });
