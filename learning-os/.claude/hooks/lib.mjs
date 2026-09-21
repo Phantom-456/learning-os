@@ -4,11 +4,17 @@ import { getAllTemplates } from '../../lib/core/templates';
 
 // Word-boundary-aware substring check — plain `String#includes` would
 // false-positive on short/common titles (e.g. a concept titled "ROS" would
-// fire on the word "across").
+// fire on the word "across"). Uses lookaround instead of `\b`: `\b` requires
+// a word/non-word transition, which never fires at a match edge that is
+// itself a non-word character (e.g. "Extended Kalman filter (EKF)" ends in
+// ")", so a trailing `\b` can never match there even on an exact quote).
+// Lookaround only checks the single adjacent character (or string
+// boundary, which always satisfies it), so it handles punctuation-edged
+// titles correctly too.
 function titleAppearsIn(lowerPrompt, title) {
   const lowerTitle = title.toLowerCase();
   const escaped = lowerTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`).test(lowerPrompt);
+  return new RegExp(`(?<![a-z0-9_])${escaped}(?![a-z0-9_])`).test(lowerPrompt);
 }
 
 // Cheap, deterministic keyword match against known entity titles — no LLM

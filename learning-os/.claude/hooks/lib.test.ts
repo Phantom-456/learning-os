@@ -24,6 +24,17 @@ describe('hooks lib', () => {
     expect(noHits).toHaveLength(0);
   });
 
+  it('matches a title that starts/ends with punctuation, not just word characters', async () => {
+    const { createConcept } = await import('../../lib/core/concepts');
+    createConcept({ id: 'ekf', title: 'Extended Kalman filter (EKF)', parent: 'State estimation' });
+    const { rebuildIndex } = await import('../../lib/core/indexDb');
+    rebuildIndex();
+
+    const { matchEntityTitles } = await import('./lib.mjs');
+    const hits = matchEntityTitles("let's talk about extended kalman filter (ekf) today");
+    expect(hits.some((h) => h.id === 'ekf' && h.kind === 'concept')).toBe(true);
+  });
+
   it('summarizes newly-unblocked checkpoints for a project', async () => {
     const { createProject } = await import('../../lib/core/projects');
     createProject({
