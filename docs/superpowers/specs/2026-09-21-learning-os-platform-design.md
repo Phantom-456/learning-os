@@ -139,6 +139,25 @@ notes: [...]
 all `done`. A `depends_on` edge that would create a cycle is rejected at
 write time (§5).
 
+### Price Record (supporting entity)
+One per priced item, an append-only observation log (never overwritten —
+old observations stay, so trend and staleness are both visible). Default
+location/currency is India/INR, carried per record for extensibility.
+```yaml
+id: price-<item-slug>
+item: "Raspberry Pi 4 8GB"
+location: IN
+currency: INR
+observations:
+  - {date: 2026-09-21, price: 8500, available: true, source: "https://robu.in/...", seller: "Robu.in"}
+  - {date: 2026-06-01, price: 7999, available: true, source: "..."}
+alternatives:
+  - {name: "Orange Pi 5", price: 6500, currency: INR, downsides: "less community support"}
+```
+Checkpoints/Projects reference a Price Record by `item` rather than storing
+a price inline, so the same item priced for two different projects shares
+one growing history instead of two independent lookups.
+
 ### Global knowledge (singleton)
 One record, instance-wide, structurally identical to a Template's experience
 fields but not scoped to any single Template:
@@ -191,6 +210,14 @@ governs §4's memory hook and the Template-search skill below.
 
 ## 4. Agent-side context assembly
 
+**Skill vs. tool principle.** A *skill* is LLM-backed and used only where
+actual judgment or generation is needed (drafting a syllabus, evaluating
+which free resources are actually good, deciding how to explode a confusing
+concept, interpreting fresh marketplace listings). Anything deterministic —
+a cache read, a staleness check, a filtered DB query, DAG resolution, a
+notes rollup, an index rebuild — is a plain tool (a function call, no LLM in
+the loop). Reach for a skill only after confirming a tool can't do it.
+
 ### Memory-inject hook (gated, not blanket)
 A cheap pre-check (keyword/title match against known Concept/Course/
 Project/Template names — no LLM call) decides whether the current message
@@ -199,9 +226,10 @@ and even then it loads summaries + links first, not full note bodies — the
 common case (a question unrelated to tracked entities) costs zero injected
 tokens.
 
-### Template-library search skill
-A "librarian" decision: below a size threshold (e.g. ~15-20 templates), list
-them all directly — cheap, no separate call needed. Above it, run a
+### Template-library search tool
+A "librarian" decision, deterministic (a tool, not a skill — no LLM
+judgment needed): below a size threshold (e.g. ~15-20 templates), list them
+all directly — cheap, no separate call needed. Above it, run a
 filtered/full-text query against the index and return only top matches —
 the whole library is never dumped into context once it's grown.
 
@@ -265,11 +293,21 @@ skills rather than hard-coded into the core package:
 - **Commerce/marketplace providers** — retailers/marketplaces scoped to the
   user's location, searched by the pricing skill.
 
-### Pricing skill (detail)
-For a checkpoint and for the whole project, returns: a rough total price to
-complete it, links to every source/listing it priced from, and — where a
-paid tool has a free alternative or workaround — that alternative listed
-alongside with its downsides noted (e.g. "free tier caps exports at
+### Pricing (detail)
+Cache-first, per the skill-vs-tool principle (§4): a **tool** reads the
+Price Record (§2) for each item a checkpoint needs. If the latest
+observation is within a staleness window (e.g. 30-90 days — most tools and
+devices sit in a stable price range absent a geopolitical shock), it's
+reused directly — no search, no LLM call. Only when a record is stale or
+missing does the **pricing skill** run a fresh India/INR-scoped marketplace
+search and append a new observation (never overwrite) to that item's Price
+Record.
+
+For a checkpoint and for the whole project, the result is: a rough total
+price to complete it (summed from current Price Record observations), links
+to every source/listing behind them, current availability in India, and —
+where a paid tool has a free alternative or workaround — that alternative
+listed alongside with its downsides noted (e.g. "free tier caps exports at
 10/day").
 
 ---
@@ -286,9 +324,10 @@ alongside with its downsides noted (e.g. "free tier caps exports at
    the checkpoint DAG.
 4. **Resource-finder skill** looks up free study material per new Concept
    and creates draft Source entries, pre-tagged.
-5. **Pricing skill** looks up any hardware/tool the syllabus calls for,
-   attaches results (with links and free alternatives) to the relevant
-   checkpoint as a note.
+5. **Pricing** looks up any hardware/tool the syllabus calls for: the tool
+   checks each item's Price Record first, and only the pricing skill runs a
+   fresh search for items that are stale or missing (§6). Results (with
+   links and free alternatives) attach to the relevant checkpoint as a note.
 6. Core writes the new Project + Checkpoints + Courses + Concepts + Sources
    to `content/*.md`, rebuilds the local index.
 7. User completes a checkpoint → the DAG resolver recomputes what's newly
