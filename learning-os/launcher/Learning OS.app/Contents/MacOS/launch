@@ -1,0 +1,5 @@
+#!/bin/bash
+# .app entry point: open the runner in Terminal so the user can see progress and
+# so closing the window cleanly stops the server (the runner traps EXIT).
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+open -a Terminal "$DIR/run.command"
