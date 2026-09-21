@@ -8,6 +8,7 @@ import { registerGlobalKnowledgeTools } from './tools/globalKnowledge';
 import { registerProjectTools } from './tools/projects';
 import { registerPriceTools } from './tools/prices';
 import { registerRollupTools } from './tools/rollup';
+import { registerExplodeTools } from './tools/explode';
 
 const server = new McpServer({ name: 'learning-os', version: '0.1.0' });
 registerConceptTools(server);
@@ -18,6 +19,7 @@ registerGlobalKnowledgeTools(server);
 registerProjectTools(server);
 registerPriceTools(server);
 registerRollupTools(server);
+registerExplodeTools(server);
 
 async function main() {
   const transport = new StdioServerTransport();

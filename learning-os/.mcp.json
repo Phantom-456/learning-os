@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "learning-os": {
+      "command": "npx",
+      "args": ["tsx", "mcp/server.ts"]
+    }
+  }
+}
