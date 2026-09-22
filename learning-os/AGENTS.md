@@ -96,11 +96,13 @@ source directly, so plain `node` won't work), registered in
 
 ## Data model
 
-Five entities plus two singletons, all Markdown files under `content/`,
-indexed by a rebuildable SQLite mirror (`lib/core/indexDb.ts`) — see the
-design spec (`docs/superpowers/specs/2026-09-21-learning-os-platform-design.md`)
-for the full schema. In short: Concept (atomic, shared, mastered once),
-Source (tags one or more Concepts), Course (bundle of Concepts/subcourses),
-Template (reusable project blueprint with accumulated experience), Project
-(a checkpoint dependency graph), Price Record (append-only, market-scoped),
-Global Knowledge (instance-wide singleton).
+Five entities plus a Price Record (append-only, market-scoped, one per
+priced item — not a singleton) and a Global Knowledge singleton, all
+Markdown files under `content/`, indexed by a rebuildable SQLite mirror
+(`lib/core/indexDb.ts`) — see the design spec
+(`../docs/superpowers/specs/2026-09-21-learning-os-platform-design.md`, one
+directory above this file, at the git repo root) for the full schema. In
+short: Concept (atomic, shared, mastered once), Source (tags one or more
+Concepts), Course (bundle of Concepts/subcourses), Template (reusable
+project blueprint with accumulated experience), Project (a checkpoint
+dependency graph), Price Record, Global Knowledge.
