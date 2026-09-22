@@ -81,4 +81,23 @@ describe('concepts', () => {
     expect(data.links).toEqual([{ label: 'doc', url: 'https://example.com' }]);
     expect(data.template_done).toEqual(['definition', 'intuition']);
   });
+
+  it('round-trips sourceFlag and needsObjectives through save/read', async () => {
+    const { createConcept, saveConcept, getConcept } = await import('./concepts');
+    createConcept({ id: 'flagged', title: 'Flagged', parent: 'P' });
+    const c = getConcept('flagged')!;
+    c.sourceFlag = 'need_better_sources';
+    c.needsObjectives = true;
+    saveConcept(c);
+    const reread = getConcept('flagged')!;
+    expect(reread.sourceFlag).toBe('need_better_sources');
+    expect(reread.needsObjectives).toBe(true);
+  });
+
+  it('defaults sourceFlag/needsObjectives to unset on a fresh concept', async () => {
+    const { createConcept } = await import('./concepts');
+    const c = createConcept({ id: 'fresh', title: 'Fresh', parent: 'P' });
+    expect(c.sourceFlag).toBeUndefined();
+    expect(c.needsObjectives).toBeFalsy();
+  });
 });
