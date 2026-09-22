@@ -21,8 +21,23 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [explodeOpen, setExplodeOpen] = useState(false);
+  const [sourceFlagChoice, setSourceFlagChoice] = useState<'need_sources' | 'need_better_sources' | 'need_new_sources'>(
+    srcs.length === 0 ? 'need_sources' : 'need_better_sources'
+  );
 
   function set<K extends keyof Concept>(k: K, v: Concept[K]) { setC({ ...c, [k]: v }); }
+
+  async function flagForSources() {
+    await api(`/api/concepts/${c.id}`, 'PATCH', { sourceFlag: sourceFlagChoice });
+    setC({ ...c, sourceFlag: sourceFlagChoice });
+    router.refresh();
+  }
+
+  async function flagForObjectives() {
+    await api(`/api/concepts/${c.id}`, 'PATCH', { needsObjectives: true });
+    setC({ ...c, needsObjectives: true });
+    router.refresh();
+  }
 
   async function save() {
     setSaving(true); setMsg('');
@@ -146,7 +161,14 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
           </div>
           <div className="toolbar">
             <button className="btn sm" onClick={addSource}>＋ Add source</button>
-            <button className="btn solid" style={{ background: 'var(--accent)', color: '#000', border: 'none', boxShadow: '0 0 10px var(--accent)' }} onClick={() => alert('Source Skill Runner Triggered! (Placeholder)')}>⚡ Run Source Search</button>
+            <select value={sourceFlagChoice} onChange={(e) => setSourceFlagChoice(e.target.value as typeof sourceFlagChoice)} style={{ width: 'auto' }}>
+              <option value="need_sources">Need sources</option>
+              <option value="need_better_sources">Need better sources</option>
+              <option value="need_new_sources">Need new sources</option>
+            </select>
+            <button className="btn solid" style={{ background: 'var(--accent)', color: '#000', border: 'none', boxShadow: '0 0 10px var(--accent)' }} onClick={flagForSources}>
+              {c.sourceFlag ? `⚡ Flagged: ${c.sourceFlag.replace(/_/g, ' ')}` : '⚡ Run Source Search'}
+            </button>
           </div>
         </div>
 
@@ -163,6 +185,9 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
           
           <div className="quest-step" style={{ marginTop: '20px' }}>
              <div className="step-title" style={{ fontSize: '18px' }}>Concept Objectives</div>
+             <button className="btn sm" onClick={flagForObjectives} style={{ marginTop: 8 }}>
+               {c.needsObjectives ? '⏳ Flagged — run Set Objectives skill' : '✨ Fill Concept Objectives'}
+             </button>
              <div className="field" style={{ marginTop: '12px' }}>
                 <label style={{ color: 'var(--accent)' }}>Goal</label>
                 <textarea className="quest-textarea" value={c.goal} onChange={(e) => set('goal', e.target.value)} placeholder="What do you want to learn here?" />
