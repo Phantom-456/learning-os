@@ -14,7 +14,10 @@ export async function GET(_req: Request, { params }: Ctx) {
   return NextResponse.json({ concept: c });
 }
 
-const EDITABLE: (keyof Concept)[] = ['title', 'parent', 'order', 'body', 'prereqs', 'notes', 'archived'];
+const EDITABLE: (keyof Concept)[] = [
+  'title', 'parent', 'order', 'body', 'prereqs', 'notes', 'archived',
+  'goal', 'success_condition', 'failure_condition', 'sourceFlag', 'needsObjectives',
+];
 
 export async function PATCH(req: Request, { params }: Ctx) {
   const { id } = await params;

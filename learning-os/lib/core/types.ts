@@ -32,6 +32,8 @@ export interface Concept {
   notes: Note[];
   updated: string;
   archived?: boolean;
+  sourceFlag?: 'need_sources' | 'need_better_sources' | 'need_new_sources';
+  needsObjectives?: boolean;
   body: string;
   /** Frontmatter keys this layer doesn't model (e.g. the old layer's `videos`/`links`/`template_done`), preserved verbatim across read-modify-write so they aren't silently dropped. */
   extra?: Record<string, unknown>;

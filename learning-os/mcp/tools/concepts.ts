@@ -110,4 +110,69 @@ export function registerConceptTools(server: McpServer): void {
       return text(c);
     }
   );
+
+  server.tool(
+    'flag_concept_sources',
+    'Flag a concept as needing source-gathering attention (need_sources: none attached yet; need_better_sources: existing ones are weak; need_new_sources: existing ones are stale). Cleared by clear_concept_sources_flag, typically after the gather-sources skill runs.',
+    { id: z.string(), flag: z.enum(['need_sources', 'need_better_sources', 'need_new_sources']) },
+    async ({ id, flag }) => {
+      const c = getConcept(id);
+      if (!c) return { content: [{ type: 'text' as const, text: `Concept not found: ${id}` }], isError: true };
+      c.sourceFlag = flag;
+      return text(saveConcept(c));
+    }
+  );
+
+  server.tool(
+    'list_concepts_needing_sources',
+    'List every concept with a sourceFlag currently set — the work queue for the gather-sources skill.',
+    {},
+    async () => text(getAllConcepts().filter((c) => c.sourceFlag))
+  );
+
+  server.tool(
+    'clear_concept_sources_flag',
+    'Clear a concept\'s sourceFlag once it has been addressed.',
+    { id: z.string() },
+    async ({ id }) => {
+      const c = getConcept(id);
+      if (!c) return { content: [{ type: 'text' as const, text: `Concept not found: ${id}` }], isError: true };
+      c.sourceFlag = undefined;
+      return text(saveConcept(c));
+    }
+  );
+
+  server.tool(
+    'flag_concept_objectives',
+    'Flag a concept as needing its Goal/Success Condition/Failure Condition auto-filled. Cleared automatically by set_concept_objectives.',
+    { id: z.string() },
+    async ({ id }) => {
+      const c = getConcept(id);
+      if (!c) return { content: [{ type: 'text' as const, text: `Concept not found: ${id}` }], isError: true };
+      c.needsObjectives = true;
+      return text(saveConcept(c));
+    }
+  );
+
+  server.tool(
+    'list_concepts_needing_objectives',
+    'List every concept with needsObjectives set — the work queue for the set-objectives skill.',
+    {},
+    async () => text(getAllConcepts().filter((c) => c.needsObjectives))
+  );
+
+  server.tool(
+    'set_concept_objectives',
+    'Write a concept\'s Goal/Success Condition/Failure Condition and clear its needsObjectives flag in one call.',
+    { id: z.string(), goal: z.string(), success_condition: z.string(), failure_condition: z.string() },
+    async ({ id, goal, success_condition, failure_condition }) => {
+      const c = getConcept(id);
+      if (!c) return { content: [{ type: 'text' as const, text: `Concept not found: ${id}` }], isError: true };
+      c.goal = goal;
+      c.success_condition = success_condition;
+      c.failure_condition = failure_condition;
+      c.needsObjectives = false;
+      return text(saveConcept(c));
+    }
+  );
 }

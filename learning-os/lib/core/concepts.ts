@@ -13,7 +13,7 @@ export function listConceptIds(): string[] {
 
 const KNOWN_CONCEPT_KEYS = new Set([
   'id', 'title', 'parent', 'order', 'status', 'review', 'prereqs', 'goal', 'success_condition', 'failure_condition',
-  'notes', 'updated', 'archived',
+  'notes', 'updated', 'archived', 'sourceFlag', 'needsObjectives',
 ]);
 
 function extractExtra(data: Record<string, unknown>): Record<string, unknown> | undefined {
@@ -39,6 +39,8 @@ function normalize(id: string, data: Record<string, unknown>, body: string): Con
     notes: (data.notes as Note[]) ?? [],
     updated: (data.updated as string) ?? today(),
     archived: Boolean(data.archived ?? false),
+    sourceFlag: data.sourceFlag as Concept['sourceFlag'],
+    needsObjectives: Boolean(data.needsObjectives ?? false),
     extra: extractExtra(data),
     body,
   };
@@ -72,6 +74,8 @@ function frontmatter(c: Concept): Record<string, unknown> {
     updated: c.updated,
   };
   if (c.archived) fm.archived = true;
+  if (c.sourceFlag) fm.sourceFlag = c.sourceFlag;
+  if (c.needsObjectives) fm.needsObjectives = true;
   return fm;
 }
 
