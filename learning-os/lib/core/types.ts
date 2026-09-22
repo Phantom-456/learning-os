@@ -26,6 +26,9 @@ export interface Concept {
   status: Status;
   review: boolean;
   prereqs: string[];
+  goal?: string;
+  success_condition?: string;
+  failure_condition?: string;
   notes: Note[];
   updated: string;
   archived?: boolean;

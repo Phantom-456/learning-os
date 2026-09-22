@@ -4,9 +4,9 @@
   "private": true,
   "description": "YTS v2 — personal robotics + control-science learning OS (a window onto Markdown files)",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 64296",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 64296",
     "lint": "next lint",
     "test": "vitest run",
     "mcp": "tsx mcp/server.ts"
@@ -14,9 +14,12 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "gray-matter": "^4.0.3",
+    "lucide-react": "^1.47.0",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

@@ -1,0 +1,15 @@
+
+> yts-learning-os@0.1.0 dev
+> next dev -p 64296
+
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:64296
+   - Network:      http://192.168.29.225:64296
+
+ ✓ Starting...
+ ✓ Ready in 1867ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.3s (646 modules)
+(node:26334) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET / 200 in 2750ms

@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { Concept, Note, Source } from '@/lib/core/types';
 import { STATUS_COLOR } from '@/lib/core/status';
 
@@ -25,7 +27,7 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
   async function save() {
     setSaving(true); setMsg('');
     try {
-      await api(`/api/concepts/${c.id}`, 'PATCH', { title: c.title, parent: c.parent, body: c.body, prereqs: c.prereqs });
+      await api(`/api/concepts/${c.id}`, 'PATCH', { title: c.title, parent: c.parent, body: c.body, prereqs: c.prereqs, goal: c.goal, success_condition: c.success_condition, failure_condition: c.failure_condition });
       setMsg('Saved.'); router.refresh();
     } catch (e) { setMsg((e as Error).message); }
     finally { setSaving(false); }
@@ -113,7 +115,9 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
               <div key={n.id} className="card" style={{ alignItems: 'flex-start' }}>
                 <span className="chip" style={{ background: 'var(--accent)' }} />
                 <div className="body">
-                  <div className="desc" style={{ whiteSpace: 'pre-wrap' }}>{n.text}</div>
+                  <div className="desc markdown-body" style={{ whiteSpace: 'normal', lineHeight: '1.6' }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{n.text || ''}</ReactMarkdown>
+                  </div>
                   {n.attachments?.map((a, i) => (
                     <a key={i} href={a.url} target="_blank" rel="noreferrer" className="pill" style={{ marginTop: 6, display: 'inline-block' }}>{a.url}</a>
                   ))}
@@ -140,7 +144,10 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
             ))}
             {srcs.length === 0 && <div className="empty">No sources yet.</div>}
           </div>
-          <div className="toolbar"><button className="btn sm" onClick={addSource}>＋ Add source</button></div>
+          <div className="toolbar">
+            <button className="btn sm" onClick={addSource}>＋ Add source</button>
+            <button className="btn solid" style={{ background: 'var(--accent)', color: '#000', border: 'none', boxShadow: '0 0 10px var(--accent)' }} onClick={() => alert('Source Skill Runner Triggered! (Placeholder)')}>⚡ Run Source Search</button>
+          </div>
         </div>
 
         <div style={{ flex: '1 1 300px', minWidth: 260 }}>
@@ -152,6 +159,22 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
           <div className="field">
             <label>Title</label>
             <input type="text" value={c.title} onChange={(e) => set('title', e.target.value)} />
+          </div>
+          
+          <div className="quest-step" style={{ marginTop: '20px' }}>
+             <div className="step-title" style={{ fontSize: '18px' }}>Concept Objectives</div>
+             <div className="field" style={{ marginTop: '12px' }}>
+                <label style={{ color: 'var(--accent)' }}>Goal</label>
+                <textarea className="quest-textarea" value={c.goal} onChange={(e) => set('goal', e.target.value)} placeholder="What do you want to learn here?" />
+             </div>
+             <div className="field">
+                <label style={{ color: 'var(--green)' }}>Success Condition</label>
+                <textarea className="quest-textarea" value={c.success_condition} onChange={(e) => set('success_condition', e.target.value)} placeholder="How do you know you've mastered it?" />
+             </div>
+             <div className="field">
+                <label style={{ color: 'var(--red)' }}>Failure Condition</label>
+                <textarea className="quest-textarea" value={c.failure_condition} onChange={(e) => set('failure_condition', e.target.value)} placeholder="What indicates you haven't grasped it yet?" />
+             </div>
           </div>
         </div>
       </div>

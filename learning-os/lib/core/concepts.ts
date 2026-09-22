@@ -12,7 +12,7 @@ export function listConceptIds(): string[] {
 }
 
 const KNOWN_CONCEPT_KEYS = new Set([
-  'id', 'title', 'parent', 'order', 'status', 'review', 'prereqs',
+  'id', 'title', 'parent', 'order', 'status', 'review', 'prereqs', 'goal', 'success_condition', 'failure_condition',
   'notes', 'updated', 'archived',
 ]);
 
@@ -33,6 +33,9 @@ function normalize(id: string, data: Record<string, unknown>, body: string): Con
     status: (data.status as Concept['status']) ?? 'not_started',
     review: Boolean(data.review ?? false),
     prereqs: (data.prereqs as string[]) ?? [],
+    goal: (data.goal as string) ?? '',
+    success_condition: (data.success_condition as string) ?? '',
+    failure_condition: (data.failure_condition as string) ?? '',
     notes: (data.notes as Note[]) ?? [],
     updated: (data.updated as string) ?? today(),
     archived: Boolean(data.archived ?? false),
@@ -62,6 +65,9 @@ function frontmatter(c: Concept): Record<string, unknown> {
     status: c.status,
     review: c.review,
     prereqs: c.prereqs,
+    goal: c.goal,
+    success_condition: c.success_condition,
+    failure_condition: c.failure_condition,
     notes: c.notes,
     updated: c.updated,
   };
@@ -87,6 +93,9 @@ export function createConcept(
     status: input.status ?? 'not_started',
     review: input.review ?? false,
     prereqs: input.prereqs ?? [],
+    goal: input.goal ?? '',
+    success_condition: input.success_condition ?? '',
+    failure_condition: input.failure_condition ?? '',
     notes: input.notes ?? [],
     updated: today(),
     body: input.body ?? '',
