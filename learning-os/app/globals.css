@@ -479,3 +479,11 @@ textarea { min-height: 320px; line-height: 1.6; resize: vertical; font-family: u
   border-left: 4px solid var(--accent); padding-left: 12px;
   color: var(--muted); font-style: italic; margin-left: 0;
 }
+
+/* ---- Rich Markdown editor (TipTap) ---- */
+.rich-editor { border: 1px solid var(--border-2); border-radius: var(--radius-sm); background: var(--panel-2); }
+.rich-editor-toolbar { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border-2); flex-wrap: wrap; }
+.rich-editor-toolbar button { background: transparent; border: 1px solid var(--border-2); color: var(--text); border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
+.rich-editor-toolbar button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.rich-editor-content { padding: 10px 12px; min-height: 260px; line-height: 1.6; }
+.rich-editor-content .ProseMirror { outline: none; }

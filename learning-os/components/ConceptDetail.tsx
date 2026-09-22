@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Concept, Note, Source } from '@/lib/core/types';
 import { STATUS_COLOR } from '@/lib/core/status';
+import RichMarkdownEditor from './RichMarkdownEditor';
 
 async function api(url: string, method: string, body?: unknown) {
   const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -21,6 +22,7 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [explodeOpen, setExplodeOpen] = useState(false);
+  const [bodyEditable, setBodyEditable] = useState(false);
   const [sourceFlagChoice, setSourceFlagChoice] = useState<'need_sources' | 'need_better_sources' | 'need_new_sources'>(
     srcs.length === 0 ? 'need_sources' : 'need_better_sources'
   );
@@ -120,8 +122,13 @@ export default function ConceptDetail({ concept, parents, sources }: { concept: 
       <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
         <div style={{ flex: '1 1 520px', minWidth: 320 }}>
           <div className="field">
-            <label>Notes (Markdown — your own words)</label>
-            <textarea value={c.body} onChange={(e) => set('body', e.target.value)} />
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ marginBottom: 0 }}>Notes (Markdown — your own words)</label>
+              <button className="btn ghost sm" onClick={() => setBodyEditable(!bodyEditable)}>
+                {bodyEditable ? '👁 Switch to readable' : '✏️ Switch to editable'}
+              </button>
+            </div>
+            <RichMarkdownEditor value={c.body} onChange={(md) => set('body', md)} editable={bodyEditable} />
           </div>
 
           <div className="section-title" style={{ marginTop: 0 }}>Notes dump</div>
