@@ -73,4 +73,43 @@ describe('concept tools', () => {
     expect(parsed.notes).toHaveLength(1);
     expect(parsed.notes[0].text).toBe('Tuned gains empirically');
   });
+
+  it('flags a concept for sources, lists it, then clears the flag', async () => {
+    const { registerConceptTools } = await import('./concepts');
+    const server = new McpServer({ name: 'test', version: '0.0.0' });
+    registerConceptTools(server);
+
+    await callTool(server, 'create_concept', { id: 'needs-src', title: 'Needs Src', parent: 'P' });
+    await callTool(server, 'flag_concept_sources', { id: 'needs-src', flag: 'need_sources' });
+
+    const listed = await callTool(server, 'list_concepts_needing_sources', {});
+    const listedText = (listed as { content: { text: string }[] }).content[0].text;
+    expect(listedText).toContain('needs-src');
+
+    await callTool(server, 'clear_concept_sources_flag', { id: 'needs-src' });
+    const listedAfter = await callTool(server, 'list_concepts_needing_sources', {});
+    const listedAfterText = (listedAfter as { content: { text: string }[] }).content[0].text;
+    expect(listedAfterText).not.toContain('needs-src');
+  });
+
+  it('flags a concept for objectives, lists it, sets objectives, and the flag clears', async () => {
+    const { registerConceptTools } = await import('./concepts');
+    const server = new McpServer({ name: 'test', version: '0.0.0' });
+    registerConceptTools(server);
+
+    await callTool(server, 'create_concept', { id: 'needs-obj', title: 'Needs Obj', parent: 'P' });
+    await callTool(server, 'flag_concept_objectives', { id: 'needs-obj' });
+
+    const listed = await callTool(server, 'list_concepts_needing_objectives', {});
+    expect((listed as { content: { text: string }[] }).content[0].text).toContain('needs-obj');
+
+    await callTool(server, 'set_concept_objectives', {
+      id: 'needs-obj', goal: 'Understand X', success_condition: 'Can explain X unaided', failure_condition: 'Still confuses X with Y',
+    });
+
+    const after = await callTool(server, 'get_concept', { id: 'needs-obj' });
+    const afterText = (after as { content: { text: string }[] }).content[0].text;
+    expect(afterText).toContain('Understand X');
+    expect(afterText).not.toContain('"needsObjectives": true');
+  });
 });
