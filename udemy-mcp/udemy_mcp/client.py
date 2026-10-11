@@ -1,5 +1,7 @@
 import json
 import re
+import urllib.request
+import urllib.error
 from typing import Optional, List, Dict, Any
 from urllib.parse import quote
 
@@ -17,29 +19,42 @@ class UdemyClient:
     BASE_URL = "https://www.udemy.com/api-2.0"
 
     def __init__(self):
-        self._session = None
         self._session_data = None
 
-    def _get_curl_session(self):
-        from curl_cffi import requests
+    def _request(self, url: str, timeout: int = 15) -> Dict[str, Any]:
         cached = load_cached_session()
         self._session_data = cached
-        s = requests.Session(impersonate="chrome120")
-        if cached:
-            headers = {
-                "Accept": "application/json, text/plain, */*",
-                "Referer": "https://www.udemy.com/",
-            }
-            if cached.get("access_token"):
-                headers["Authorization"] = f"Bearer {cached['access_token']}"
-            if cached.get("client_id"):
-                headers["X-Udemy-Client-Id"] = cached["client_id"]
-            if cached.get("cookie_string"):
-                headers["Cookie"] = cached["cookie_string"]
-            if cached.get("user_agent"):
-                headers["User-Agent"] = cached["user_agent"]
-            s.headers.update(headers)
-        return s
+
+        if not cached:
+            raise PermissionError("No cached Udemy session found. Call trigger_login to authenticate.")
+
+        req = urllib.request.Request(url)
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.udemy.com/",
+        }
+        if cached.get("access_token"):
+            headers["Authorization"] = f"Bearer {cached['access_token']}"
+        if cached.get("client_id"):
+            headers["X-Udemy-Client-Id"] = cached["client_id"]
+        if cached.get("cookie_string"):
+            headers["Cookie"] = cached["cookie_string"]
+        if cached.get("user_agent"):
+            headers["User-Agent"] = cached["user_agent"]
+
+        for k, v in headers.items():
+            req.add_header(k, v)
+
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read()
+                return json.loads(raw.decode("utf-8")) if raw else {}
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                raise PermissionError("Udemy session expired or unauthenticated. Call trigger_login to authenticate.")
+            raise RuntimeError(f"Udemy API returned HTTP {e.code}: {e.reason}")
+        except Exception as e:
+            raise RuntimeError(f"Connection error requesting Udemy API: {str(e)}")
 
     def check_auth_status(self) -> AuthStatus:
         cached = load_cached_session()
@@ -49,32 +64,23 @@ class UdemyClient:
                 reason="No cached session found in ~/.config/udemy-mcp/session.json. Call trigger_login to authenticate."
             )
         try:
-            s = self._get_curl_session()
-            resp = s.get(f"{self.BASE_URL}/users/me/?fields[user]=title,display_name,email", timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                name = data.get("display_name") or data.get("title") or "Udemy User"
-                return AuthStatus(
-                    authenticated=True,
-                    user=name,
-                    saved_at=cached.get("saved_at")
-                )
-            elif resp.status_code in (401, 403):
-                return AuthStatus(
-                    authenticated=False,
-                    reason=f"Session token expired or rejected (HTTP {resp.status_code}). Call trigger_login to re-authenticate.",
-                    saved_at=cached.get("saved_at")
-                )
-            else:
-                return AuthStatus(
-                    authenticated=True,  # token exists, transient status
-                    user="Udemy User",
-                    saved_at=cached.get("saved_at")
-                )
+            data = self._request(f"{self.BASE_URL}/users/me/?fields[user]=title,display_name,email", timeout=10)
+            name = data.get("display_name") or data.get("title") or "Udemy User"
+            return AuthStatus(
+                authenticated=True,
+                user=name,
+                saved_at=cached.get("saved_at")
+            )
+        except PermissionError:
+            return AuthStatus(
+                authenticated=False,
+                reason="Session token expired or rejected. Call trigger_login to re-authenticate.",
+                saved_at=cached.get("saved_at")
+            )
         except Exception as e:
             return AuthStatus(
                 authenticated=False,
-                reason=f"Connection error testing session: {str(e)}"
+                reason=f"Error checking session: {str(e)}"
             )
 
     def search_courses(
@@ -83,64 +89,66 @@ class UdemyClient:
         page_size: int = 5,
         sort: str = "relevance"
     ) -> List[CourseSummary]:
-        s = self._get_curl_session()
         page_size = min(max(1, page_size), 20)
+        encoded_query = quote(query.strip())
 
-        sort_map = {
-            "relevance": "relevance",
-            "highest-rated": "-rating",
-            "newest": "-release_date",
-        }
-        ordering = sort_map.get(sort, "relevance")
+        # 1. First search via search-suggestions endpoint (fast, returns catalog course items)
+        url = f"{self.BASE_URL}/search-suggestions/?q={encoded_query}&type=course"
+        try:
+            data = self._request(url)
+        except Exception:
+            data = {}
 
-        url = (
-            f"{self.BASE_URL}/courses/?"
-            f"search={quote(query)}&"
-            f"page_size={page_size}&"
-            f"ordering={ordering}&"
-            f"fields[course]=id,title,headline,url,visible_instructors,rating,num_subscribers,content_info,is_paid"
-        )
-        resp = s.get(url, timeout=15)
-        if resp.status_code in (401, 403):
-            raise PermissionError("Udemy session expired or unauthenticated. Call trigger_login to authenticate.")
-        resp.raise_for_status()
-
-        data = resp.json()
-        results = []
+        courses_found = []
         for item in data.get("results", []):
-            instructors = [inst.get("display_name") for inst in item.get("visible_instructors", []) if inst.get("display_name")]
-            primary_inst = instructors[0] if instructors else None
-            course_url = item.get("url", "")
-            if course_url and not course_url.startswith("http"):
-                course_url = f"https://www.udemy.com{course_url}"
+            if item.get("_class") == "course":
+                course_url = item.get("url", "")
+                if course_url and not course_url.startswith("http"):
+                    course_url = f"https://www.udemy.com{course_url}"
 
-            results.append(CourseSummary(
-                id=item["id"],
-                title=item.get("title", ""),
-                headline=item.get("headline"),
-                url=course_url,
-                primary_instructor=primary_inst,
-                rating=item.get("rating"),
-                num_subscribers=item.get("num_subscribers"),
-                duration_text=item.get("content_info"),
-                is_paid=item.get("is_paid")
-            ))
-        return results
+                instructors = item.get("instructor_name", [])
+                primary_inst = instructors[0] if instructors else None
+
+                courses_found.append(CourseSummary(
+                    id=item["id"],
+                    title=item.get("title", ""),
+                    headline=item.get("headline"),
+                    url=course_url,
+                    primary_instructor=primary_inst,
+                    rating=item.get("rating"),
+                    num_subscribers=item.get("num_subscribers"),
+                    duration_text=item.get("content_info"),
+                    is_paid=True
+                ))
+
+        # 2. Also check enrolled courses matching keyword to ensure enrolled catalog is covered
+        try:
+            enrolled = self.list_enrolled_courses(page_size=30)
+            kw = query.lower()
+            for enc in enrolled:
+                if kw in enc.get("title", "").lower() or kw in enc.get("headline", "").lower():
+                    if not any(c.id == enc["id"] for c in courses_found):
+                        courses_found.insert(0, CourseSummary(
+                            id=enc["id"],
+                            title=enc.get("title", ""),
+                            headline=enc.get("headline"),
+                            url=enc.get("url", ""),
+                            is_paid=True
+                        ))
+        except Exception:
+            pass
+
+        return courses_found[:page_size]
 
     def list_enrolled_courses(self, page_size: int = 20) -> List[Dict[str, Any]]:
-        s = self._get_curl_session()
         page_size = min(max(1, page_size), 50)
         url = (
             f"{self.BASE_URL}/users/me/subscribed-courses/?"
             f"page_size={page_size}&"
             f"fields[course]=id,title,headline,url,completion_ratio,last_accessed_time,image_480x270"
         )
-        resp = s.get(url, timeout=15)
-        if resp.status_code in (401, 403):
-            raise PermissionError("Udemy session expired or unauthenticated. Call trigger_login to authenticate.")
-        resp.raise_for_status()
+        data = self._request(url)
 
-        data = resp.json()
         courses = []
         for item in data.get("results", []):
             course_url = item.get("url", "")
@@ -161,7 +169,6 @@ class UdemyClient:
         course_id: int,
         include_descriptions: bool = True
     ) -> CourseCurriculum:
-        s = self._get_curl_session()
         page_url = (
             f"{self.BASE_URL}/courses/{course_id}/subscriber-curriculum-items/?"
             f"page_size=100&"
@@ -175,26 +182,23 @@ class UdemyClient:
 
         while page_url and curr_page < max_pages:
             curr_page += 1
-            resp = s.get(page_url, timeout=15)
-            if resp.status_code in (401, 403):
-                # Fallback to public curriculum endpoint if subscriber endpoint is restricted
+            try:
+                data = self._request(page_url)
+                all_items.extend(data.get("results", []))
+                page_url = data.get("next")
+            except Exception:
+                # Try public curriculum endpoint if subscriber items fail
                 fallback_url = (
                     f"{self.BASE_URL}/courses/{course_id}/public-curriculum-items/?"
                     f"page_size=100&fields[lecture]=id,title,description,content_summary,object_index&"
                     f"fields[chapter]=id,title,object_index"
                 )
-                fb_resp = s.get(fallback_url, timeout=15)
-                if fb_resp.status_code == 200:
-                    data = fb_resp.json()
-                    all_items.extend(data.get("results", []))
-                    break
-                else:
-                    raise PermissionError("Udemy session expired or unauthenticated. Call trigger_login to authenticate.")
-
-            resp.raise_for_status()
-            data = resp.json()
-            all_items.extend(data.get("results", []))
-            page_url = data.get("next")
+                try:
+                    fb_data = self._request(fallback_url)
+                    all_items.extend(fb_data.get("results", []))
+                except Exception:
+                    pass
+                break
 
         sections: List[ChapterSection] = []
         current_section = ChapterSection(id=0, title="Introduction", index=0, lectures=[])
@@ -215,7 +219,6 @@ class UdemyClient:
             elif item_class in ("lecture", "quiz", "practice"):
                 total_lectures += 1
                 desc = item.get("description") if include_descriptions else None
-                # Strip excessive html tags from description if present
                 if desc:
                     desc = re.sub(r"<[^>]+>", " ", desc).strip()
                     desc = " ".join(desc.split())
@@ -232,7 +235,6 @@ class UdemyClient:
                 )
                 current_section.lectures.append(lecture_item)
 
-        # Remove default section if empty
         non_empty_sections = [sec for sec in sections if sec.lectures or sec.title != "Introduction"]
 
         return CourseCurriculum(
@@ -264,17 +266,12 @@ class UdemyClient:
         return matched
 
     def get_lecture_details(self, course_id: int, lecture_id: int) -> Dict[str, Any]:
-        s = self._get_curl_session()
         url = (
             f"{self.BASE_URL}/users/me/subscribed-courses/{course_id}/lectures/{lecture_id}/?"
             f"fields[lecture]=id,title,description,asset,supplementary_assets"
         )
-        resp = s.get(url, timeout=15)
-        if resp.status_code in (401, 403):
-            raise PermissionError("Udemy session expired or unauthenticated. Call trigger_login to authenticate.")
-        resp.raise_for_status()
+        data = self._request(url)
 
-        data = resp.json()
         desc = data.get("description", "")
         if desc:
             desc = re.sub(r"<[^>]+>", " ", desc).strip()
@@ -296,17 +293,11 @@ class UdemyClient:
         }
 
     def get_lecture_transcript(self, course_id: int, lecture_id: int) -> Dict[str, Any]:
-        s = self._get_curl_session()
         url = (
             f"{self.BASE_URL}/users/me/subscribed-courses/{course_id}/lectures/{lecture_id}/?"
             f"fields[lecture]=id,title,asset&fields[asset]=captions"
         )
-        resp = s.get(url, timeout=15)
-        if resp.status_code in (401, 403):
-            raise PermissionError("Udemy session expired or unauthenticated. Call trigger_login to authenticate.")
-        resp.raise_for_status()
-
-        data = resp.json()
+        data = self._request(url)
         asset = data.get("asset") or {}
         captions = asset.get("captions") or []
 
@@ -329,10 +320,14 @@ class UdemyClient:
                 "message": "Caption track URL unavailable."
             }
 
-        cap_resp = s.get(caption_url, timeout=15)
-        raw_vtt = cap_resp.text
+        cached = load_cached_session()
+        req = urllib.request.Request(caption_url)
+        if cached and cached.get("user_agent"):
+            req.add_header("User-Agent", cached["user_agent"])
 
-        # Strip VTT timestamps and header
+        with urllib.request.urlopen(req, timeout=15) as cap_resp:
+            raw_vtt = cap_resp.read().decode("utf-8", errors="ignore")
+
         lines = []
         for line in raw_vtt.splitlines():
             line = line.strip()

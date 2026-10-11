@@ -97,6 +97,16 @@ def run_interactive_login(timeout_seconds: int = 120) -> Dict[str, Any]:
                     "user_agent": user_agent,
                     "saved_at": datetime.now().isoformat()
                 }
+                try:
+                    page.evaluate("""() => {
+                        const d = document.createElement('div');
+                        d.innerText = '✅ Login Detected! Session Saved. Closing window...';
+                        d.style.cssText = 'position:fixed;top:15px;left:50%;transform:translateX(-50%);background:#059669;color:white;padding:14px 28px;border-radius:10px;font-size:18px;font-weight:bold;z-index:9999999;box-shadow:0 6px 20px rgba(0,0,0,0.4);font-family:sans-serif;';
+                        document.body.appendChild(d);
+                    }""")
+                    time.sleep(2.0)
+                except Exception:
+                    pass
                 break
 
             # Check if user is logged in by inspecting local storage or user profile element
@@ -113,6 +123,16 @@ def run_interactive_login(timeout_seconds: int = 120) -> Dict[str, Any]:
                         "user_agent": user_agent,
                         "saved_at": datetime.now().isoformat()
                     }
+                    try:
+                        page.evaluate("""() => {
+                            const d = document.createElement('div');
+                            d.innerText = '✅ Login Detected! Session Saved. Closing window...';
+                            d.style.cssText = 'position:fixed;top:15px;left:50%;transform:translateX(-50%);background:#059669;color:white;padding:14px 28px;border-radius:10px;font-size:18px;font-weight:bold;z-index:9999999;box-shadow:0 6px 20px rgba(0,0,0,0.4);font-family:sans-serif;';
+                            document.body.appendChild(d);
+                        }""")
+                        time.sleep(2.0)
+                    except Exception:
+                        pass
                     break
             except Exception:
                 pass
