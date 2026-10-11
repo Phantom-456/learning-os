@@ -8,7 +8,7 @@ from udemy_mcp.auth import run_interactive_login
 
 mcp = FastMCP(
     "udemy-mcp",
-    description="Session-authenticated MCP server exposing Udemy Personal Plan & enrolled courses/curricula to local AI agents"
+    instructions="Session-authenticated MCP server exposing Udemy Personal Plan & enrolled courses/curricula to local AI agents"
 )
 
 client = UdemyClient()
